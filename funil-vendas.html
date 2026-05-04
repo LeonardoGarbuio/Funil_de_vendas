@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protocolo de Vendas | Devtech Engenharia</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Montserrat:wght@700;800;900&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+
+    <!-- Ícones e Bibliotecas -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+    <style>
+        /* =========================================
+           VARIÁVEIS - HIGH TICKET DARK THEME
+           ========================================= */
+        :root {
+            --bg-base: #030303;
+            --bg-surface: #0F0F0F;
+            --bg-card: #1A1A1A;
+            --primary: #FFB800; 
+            --accent-green: #00FF55; 
+            --accent-red: #FF3B30; 
+            --text-main: #FFFFFF;
+            --text-muted: #999999;
+            --border-color: #2A2A2A;
+            
+            --font-head: 'Montserrat', sans-serif;
+            --font-body: 'Inter', sans-serif;
+            --font-tech: 'JetBrains Mono', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        /* Prevenir scroll horizontal na root inteira */
+        html, body { overflow-x: hidden; }
+        html { scroll-behavior: auto; }
+        body { background-color: var(--bg-base); color: var(--text-main); font-family: var(--font-body); line-height: 1.6; }
+
+        /* Esconder scrollbars em browsers webkit globalmente */
+        ::-webkit-scrollbar { display: none; }
+        * { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* =========================================
+           EFEITOS DE IMPACTO GLOBAIS
+           ========================================= */
+        #global-wrapper { position: relative; width: 100%; min-height: 100vh; overflow: hidden; }
+        
+        @keyframes brutalShake {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            20% { transform: translate(-8px, 12px) rotate(-1deg); }
+            40% { transform: translate(12px, -8px) rotate(1deg); }
+            60% { transform: translate(-6px, -12px) rotate(0deg); }
+            80% { transform: translate(8px, 8px) rotate(-1deg); }
+        }
+        .is-shaking { animation: brutalShake 0.25s cubic-bezier(.36,.07,.19,.97); } /* Omitido 'both' para evitar bug de fixed position */
+        
+        #flash-overlay { position: fixed; inset: 0; background: var(--accent-red); mix-blend-mode: overlay; opacity: 0; pointer-events: none; z-index: 9998; }
+
+        .container { max-width: 1000px; margin: 0 auto; padding: 0 5%; position: relative; z-index: 2; }
+        .text-gold { color: var(--primary); }
+        .highlight-bg { background: rgba(255, 184, 0, 0.1); padding: 0 5px; border-radius: 4px; border-bottom: 2px solid var(--primary); }
+        
+        section { padding: 6rem 0; position: relative; }
+
+        /* =========================================
+           BARRA DE ESCASSEZ
+           ========================================= */
+        .scarcity-bar {
+            background: var(--accent-red); color: #FFF; text-align: center; padding: 10px 5%;
+            font-weight: 700; font-size: 0.9rem; position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
+            display: flex; justify-content: center; align-items: center; gap: 10px;
+        }
+        .timer-box { background: rgba(0,0,0,0.2); padding: 2px 8px; border-radius: 4px; font-family: var(--font-tech); }
+
+        /* =========================================
+           HERO / DIAGNÓSTICO PRÉ-VSL
+           ========================================= */
+        .vsl-section { padding-top: 10rem; padding-bottom: 4rem; text-align: center; background: radial-gradient(circle at top, #1a1a1a 0%, var(--bg-base) 70%); min-height: 100vh; }
+        .pre-headline { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 2px; color: var(--primary); font-weight: 800; margin-bottom: 1.5rem; display: block; }
+        .headline { font-family: var(--font-head); font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.1; font-weight: 900; margin-bottom: 1.5rem; max-width: 900px; margin-inline: auto; text-transform: uppercase; }
+        .sub-headline { font-size: 1.2rem; color: var(--text-muted); max-width: 800px; margin: 0 auto 3rem auto; line-height: 1.5; }
+
+        .diagnostic-hud {
+            max-width: 800px; margin: 0 auto; background: rgba(10, 10, 10, 0.7);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(0, 255, 85, 0.2); border-radius: 12px;
+            text-align: left; overflow: hidden; position: relative;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.9), inset 0 0 20px rgba(0, 255, 85, 0.05);
+            opacity: 0; transform: translateY(20px);
+        }
+        
+        .hud-scanner {
+            position: absolute; left: 0; top: -10%; width: 100%; height: 2px;
+            background: var(--accent-green); box-shadow: 0 0 15px var(--accent-green), 0 15px 30px rgba(0, 255, 85, 0.2);
+            animation: scanline 4s linear infinite; opacity: 0.5; z-index: 10; pointer-events: none;
+        }
+        @keyframes scanline { 0% { top: -10%; } 100% { top: 110%; } }
+
+        .hud-header {
+            background: rgba(0, 255, 85, 0.05); padding: 15px 25px; border-bottom: 1px solid rgba(0, 255, 85, 0.1);
+            display: flex; align-items: center; gap: 10px; font-family: var(--font-tech); font-size: 0.75rem;
+            color: var(--accent-green); letter-spacing: 2px; text-transform: uppercase; font-weight: 700;
+        }
+        .pulse-dot { width: 8px; height: 8px; background: var(--accent-green); border-radius: 50%; box-shadow: 0 0 10px var(--accent-green); animation: pulse-dot 1.5s infinite; }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+
+        .hud-body { padding: 3rem; position: relative; z-index: 2; }
+        .hud-question { font-family: var(--font-head); font-size: 1.5rem; color: #FFF; margin-bottom: 2rem; line-height: 1.2; }
+        
+        .hud-options { display: flex; flex-direction: column; gap: 1rem; }
+        
+        .hud-btn {
+            background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color);
+            border-left: 4px solid var(--border-color); border-radius: 6px;
+            padding: 1.2rem 1.5rem; display: flex; align-items: center; gap: 15px;
+            cursor: pointer; transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); text-align: left;
+        }
+        .hud-btn:hover { background: rgba(0, 255, 85, 0.05); border-color: rgba(0, 255, 85, 0.3); border-left-color: var(--accent-green); transform: translateX(5px); }
+        .btn-id { font-family: var(--font-tech); color: var(--text-muted); font-size: 0.8rem; font-weight: 700; transition: 0.3s; }
+        .hud-btn:hover .btn-id { color: var(--accent-green); }
+        .btn-text { font-family: var(--font-body); color: #E0E0E0; font-size: 1rem; font-weight: 600; }
+        
+        .hud-processing { display: none; text-align: center; font-family: var(--font-tech); color: var(--accent-green); font-size: 1.2rem; font-weight: 800; padding: 3rem 0; letter-spacing: 2px; }
+
+        .vsl-wrapper {
+            max-width: 800px; margin: 0 auto; background: #000; aspect-ratio: 16/9;
+            border-radius: 12px; border: 2px solid var(--accent-green); position: relative;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.8), 0 0 80px rgba(0,255,85,0.1); display: none; opacity: 0;
+            align-items: center; justify-content: center; cursor: pointer;
+        }
+        .vsl-overlay { position: absolute; inset: 0; background: url('https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop') center/cover; opacity: 0.4; filter: grayscale(100%); }
+        .play-btn { width: 90px; height: 90px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 2; box-shadow: 0 0 30px rgba(255, 184, 0, 0.5); animation: pulse 2s infinite; }
+        .play-btn svg { fill: #000; width: 35px; height: 35px; margin-left: 5px; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 184, 0, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(255, 184, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 184, 0, 0); } }
+
+        .cta-container { margin-top: 3rem; text-align: center; display: none; opacity: 0; }
+        .btn-buy {
+            display: inline-flex; align-items: center; justify-content: center; gap: 15px;
+            background: var(--accent-green); color: #000; font-family: var(--font-head);
+            font-size: 1.4rem; font-weight: 900; text-transform: uppercase; padding: 1.5rem 4rem;
+            border-radius: 8px; text-decoration: none; border: none; cursor: pointer;
+            box-shadow: 0 15px 30px rgba(0, 255, 85, 0.3); transition: 0.3s; width: 100%; max-width: 600px;
+        }
+        .btn-buy:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0, 255, 85, 0.6); background: #00FF88; }
+
+        .glitch-anim { animation: glitch-skew 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+        @keyframes glitch-skew {
+            0% { transform: skew(0deg); filter: invert(0); }
+            20% { transform: skew(-20deg); filter: hue-rotate(90deg) invert(1); }
+            40% { transform: skew(20deg); filter: hue-rotate(-90deg); }
+            60% { transform: skew(-10deg); filter: invert(0); }
+            80% { transform: skew(10deg); }
+            100% { transform: skew(0deg); filter: none; }
+        }
+
+        /* =========================================
+           DOR E AGITAÇÃO (PORRADÃO EMOCIONAL)
+           ========================================= */
+        .pain-section { background: #050505; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); position: relative; overflow: hidden; }
+        .pain-section::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(255, 59, 48, 0.15) 0%, transparent 70%); opacity: 0; transition: 0.5s; pointer-events: none; }
+        .pain-section.is-alert::before { animation: alarm-strobe 1.5s infinite; }
+        @keyframes alarm-strobe { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+
+        .pain-title { font-family: var(--font-head); font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 900; text-align: center; margin-bottom: 5rem; text-transform: uppercase; color: var(--accent-red); line-height: 1.1; text-shadow: 0 10px 30px rgba(255, 59, 48, 0.3); }
+        .pain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; perspective: 1000px; }
+        
+        .pain-card { 
+            background: linear-gradient(145deg, #111 0%, #050505 100%); 
+            padding: 3.5rem 2.5rem; border-radius: 12px; border: 1px solid rgba(255, 59, 48, 0.3); 
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+        }
+        .pain-card::after {
+            content: 'CRITICAL ERROR'; position: absolute; top: 15px; right: -35px;
+            background: var(--accent-red); color: #FFF; font-family: var(--font-tech); font-size: 0.65rem; font-weight: 900;
+            padding: 5px 40px; transform: rotate(45deg); letter-spacing: 2px; box-shadow: 0 0 15px var(--accent-red);
+        }
+        .pain-card:hover { border-color: var(--accent-red); transform: translateY(-10px) scale(1.02); box-shadow: 0 30px 60px rgba(255, 59, 48, 0.15), inset 0 0 20px rgba(255, 59, 48, 0.05); }
+        
+        .pain-card i { color: var(--accent-red); margin-bottom: 1.5rem; width: 45px; height: 45px; filter: drop-shadow(0 0 10px rgba(255, 59, 48, 0.5)); }
+        .pain-card h3 { font-family: var(--font-head); font-size: 1.5rem; margin-bottom: 1rem; color: #FFF; letter-spacing: -1px; text-transform: uppercase; }
+        .pain-card p { color: #AAA; font-size: 1.05rem; line-height: 1.6; }
+
+        .pain-status { font-family: var(--font-tech); font-size: 0.75rem; color: var(--accent-red); margin-bottom: 2rem; display: flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: 1px; }
+        .pain-status span { width: 10px; height: 10px; background: var(--accent-red); border-radius: 50%; animation: pulse-dot 1s infinite; box-shadow: 0 0 10px var(--accent-red);}
+
+        /* =========================================
+           O INIMIGO COMUM E A SANGRIA
+           ========================================= */
+        .enemy-section { padding: 6rem 0 2rem 0; background: #000; text-align: center; }
+        .enemy-box { max-width: 800px; margin: 0 auto; padding: 3rem; }
+        .enemy-title { color: #FFF; font-family: var(--font-head); font-size: 2.5rem; text-transform: uppercase; margin-bottom: 1rem; line-height: 1.1; }
+        
+        .math-section { padding: 0 0 8rem 0; background: #000; text-align: center; border-bottom: 1px solid var(--border-color); }
+        .calc-box { max-width: 800px; margin: 0 auto; background: radial-gradient(circle at center, rgba(255, 59, 48, 0.1) 0%, var(--bg-base) 80%); border: 1px solid rgba(255, 59, 48, 0.3); padding: 4rem; border-radius: 16px; box-shadow: 0 20px 60px rgba(255, 59, 48, 0.1); }
+        
+        .pulse-text { color: var(--accent-red); font-weight: 800; text-transform: uppercase; letter-spacing: 2px; font-size: 0.9rem; margin-bottom: 1rem; display: block; animation: heartbeat 1.5s infinite; }
+        @keyframes heartbeat { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; transform: scale(0.98); } }
+        
+        .calc-title { font-family: var(--font-head); font-size: 2.5rem; margin-bottom: 2rem; color: #FFF; text-transform: uppercase; }
+        
+        .live-burn-container { background: rgba(0,0,0,0.5); padding: 2rem; border-radius: 12px; border: 1px solid rgba(255,59,48,0.2); margin-top: 2rem; }
+        .calc-result { font-family: var(--font-tech); font-size: 4rem; color: var(--accent-red); font-weight: 900; text-shadow: 0 0 30px rgba(255, 59, 48, 0.6); line-height: 1; letter-spacing: -2px; }
+        .calc-sub { color: var(--text-muted); font-size: 1rem; margin-top: 15px; line-height: 1.5; }
+
+        /* =========================================
+           O PROTOCOLO (DOPAMINE SCROLL + 3D CORE)
+           Nova Arquitetura à Prova de Falhas
+           ========================================= */
+        #protocol-pin { 
+            background: #000; 
+            height: 100vh; 
+            width: 100%;
+            overflow: hidden;
+            position: relative; 
+        }
+
+        #funnel-canvas { 
+            position: absolute; right: -10%; top: 50%; transform: translateY(-50%); 
+            width: 80vw; height: 100vh; z-index: 0; pointer-events: none; 
+            opacity: 0.7; mix-blend-mode: screen; 
+        }
+
+        .scanlines { 
+            position: absolute; inset: 0; z-index: 1; pointer-events: none; 
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2)); 
+            background-size: 100% 4px; 
+        }
+
+        .protocol-content-wrapper { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; justify-content: center; }
+        
+        /* HEADER FIXO - Totalmente independente do fluxo flex */
+        .protocol-header-fixed {
+            position: absolute; top: 10vh; left: 0; width: 100%; text-align: center;
+            z-index: 5; pointer-events: none;
+        }
+        .protocol-header-fixed .section-tag { font-family: var(--font-tech); font-size: 0.8rem; color: var(--accent-green); text-transform: uppercase; letter-spacing: 4px; display: block; margin-bottom: 1rem; text-shadow: 0 0 10px rgba(0,255,85,0.5); }
+        .protocol-header-fixed .protocol-title { font-family: var(--font-head); font-size: clamp(2rem, 5vw, 4rem); font-weight: 900; color: #FFF; text-transform: uppercase; line-height: 1; text-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        
+        /* WRAPPER E FAIXA DE ROLAGEM HORIZONTAL */
+        .protocol-track-wrapper {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; align-items: center; z-index: 2;
+        }
+
+        .protocol-track { 
+            display: flex; width: max-content; 
+            padding: 0 50vw; 
+            gap: 4rem; align-items: center; 
+            transform: translateY(5vh); 
+        }
+
+        /* CARDS GAMIFICADOS */
+        .proto-card {
+            width: 420px; flex-shrink: 0; min-height: 480px;
+            border: 2px solid rgba(255, 255, 255, 0.05); border-radius: 12px;
+            position: relative; overflow: hidden; display: flex; flex-direction: column;
+            justify-content: flex-end; padding: 2.5rem; background: #0A0A0A;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: scale(0.85); opacity: 0.5; filter: grayscale(100%);
+        }
+        
+        .flash-bang { position: absolute; inset: 0; background: #FFF; z-index: 20; opacity: 0; pointer-events: none; }
+        
+        .target-corners span { position: absolute; width: 25px; height: 25px; border: 3px solid var(--accent-green); transition: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); opacity: 0; z-index: 10; }
+        .tc-tl { top: 10px; left: 10px; border-right: none; border-bottom: none; transform: translate(-10px, -10px); }
+        .tc-tr { top: 10px; right: 10px; border-left: none; border-bottom: none; transform: translate(10px, -10px); }
+        .tc-bl { bottom: 10px; left: 10px; border-right: none; border-top: none; transform: translate(-10px, 10px); }
+        .tc-br { bottom: 10px; right: 10px; border-left: none; border-top: none; transform: translate(10px, 10px); }
+
+        /* ESTADO "LOCKED-ON" */
+        .proto-card.is-active {
+            transform: scale(1.05); opacity: 1; filter: grayscale(0%);
+            border-color: var(--accent-green);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(0,255,85,0.2);
+            background: #111;
+        }
+        .proto-card.is-active .target-corners span { opacity: 1; transform: translate(0, 0); }
+
+        .proto-card-bg { position: absolute; inset: 0; z-index: 0; background-size: cover; background-position: center; opacity: 0.4; transition: 0.5s; }
+        .proto-card.is-active .proto-card-bg { opacity: 0.7; transform: scale(1.05); }
+        .proto-card-overlay { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 40%, rgba(0,0,0,0.2) 100%); }
+
+        .proto-content { position: relative; z-index: 2; }
+        
+        .dopamine-panel {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.1);
+            padding: 12px 20px; border-radius: 8px; margin-bottom: 2rem; backdrop-filter: blur(10px);
+        }
+        .proto-card.is-active .dopamine-panel { border-color: rgba(0, 255, 85, 0.4); background: rgba(0, 255, 85, 0.05); }
+        
+        .dp-info { display: flex; flex-direction: column; }
+        .dp-label { font-family: var(--font-tech); font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .proto-card.is-active .dp-label { color: rgba(0, 255, 85, 0.8); }
+        .dp-status { font-family: var(--font-tech); font-size: 0.8rem; font-weight: 800; color: #555; letter-spacing: 1px; }
+        
+        .dp-value { font-family: var(--font-tech); font-size: 1.5rem; font-weight: 900; color: #555; }
+        
+        .proto-num { font-family: var(--font-tech); font-size: 0.8rem; color: #555; margin-bottom: 0.5rem; display: block; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;}
+        .proto-card.is-active .proto-num { color: var(--accent-green); }
+
+        .proto-content h3 { font-family: var(--font-head); font-size: 2rem; margin-bottom: 1rem; line-height: 1.1; text-transform: uppercase; color: #555; transition: 0.3s;}
+        .proto-content p { color: #888; font-size: 1rem; line-height: 1.6; transition: 0.3s; }
+        .proto-card.is-active .proto-content p { color: #DDD; }
+
+        .unlock-progress { position: absolute; bottom: 0; left: 0; width: 100%; height: 6px; background: rgba(0,0,0,0.5); z-index: 4; }
+        .unlock-fill { width: 0%; height: 100%; background: var(--accent-green); box-shadow: 0 0 15px var(--accent-green); }
+
+        /* =========================================
+           OFERTA (AGÊNCIA DEVTECH PITCH)
+           ========================================= */
+        .offer-section { background: var(--bg-surface); padding: 8rem 0; border-top: 1px solid var(--border-color); }
+        .offer-box { max-width: 700px; margin: 0 auto; background: var(--bg-base); border: 2px solid var(--primary); border-radius: 16px; padding: 4rem; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        .offer-box::before { content: 'IMPLEMENTAÇÃO DO PROTOCOLO'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--primary); color: #000; padding: 4px 15px; border-radius: 50px; font-weight: 800; font-size: 0.8rem; letter-spacing: 1px;}
+        
+        .stack-list { list-style: none; margin-bottom: 3rem; border-bottom: 1px dashed var(--border-color); padding-bottom: 2rem; }
+        .stack-list li { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; font-size: 1.1rem; }
+        .stack-list li i { color: var(--accent-green); margin-right: 10px; }
+        .stack-list li .value { color: var(--text-muted); font-size: 1rem; }
+        .stack-list li.total { font-size: 1.3rem; font-weight: 700; margin-top: 2rem; color: #FFF; }
+        .stack-list li.total .value { text-decoration: none; color: var(--text-muted); text-decoration: line-through; font-family: var(--font-head); font-weight: 900; font-size: 1.3rem; }
+
+        .price-reveal { text-align: center; }
+        .the-price { font-family: var(--font-head); font-size: 4.5rem; font-weight: 900; line-height: 1; color: var(--accent-green); margin-bottom: 0.5rem; text-shadow: 0 10px 30px rgba(0, 255, 85, 0.3); }
+        .installments { font-size: 1.1rem; color: var(--text-muted); margin-bottom: 2rem; font-family: var(--font-tech); }
+
+        footer { text-align: center; padding: 3rem; border-top: 1px solid var(--border-color); font-size: 0.8rem; color: #555; }
+
+        @media (max-width: 992px) {
+            .pain-grid { grid-template-columns: 1fr; }
+            .protocol-header-fixed { top: 8vh; padding: 0 5%; }
+            .protocol-header-fixed .protocol-title { font-size: 2.2rem; }
+            .protocol-track { gap: 2rem; transform: translateY(8vh); }
+            .proto-card { width: 85vw; min-height: 400px; padding: 1.5rem; }
+            .proto-content h3 { font-size: 1.5rem; }
+            .proto-content p { font-size: 0.9rem; }
+            .offer-box { padding: 2rem; }
+            .enemy-box { padding: 2rem; }
+            .calc-box { padding: 2rem; }
+            #funnel-canvas { right: -50%; opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+
+    <script>
+        // DECLARAÇÃO GLOBAL IMEDIATA
+        window.triggerGlobalImpact = function() {
+            const wrapper = document.getElementById('global-wrapper');
+            const flash = document.getElementById('flash-overlay');
+            if(wrapper) {
+                wrapper.classList.remove('is-shaking');
+                void wrapper.offsetWidth; 
+                wrapper.classList.add('is-shaking');
+                // Remove a class para não interferir com scrolls futuros e posicionamento fixed
+                setTimeout(() => { wrapper.classList.remove('is-shaking'); }, 300);
+            }
+            if(flash) {
+                if(typeof gsap !== 'undefined') {
+                    gsap.fromTo(flash, { opacity: 0.8 }, { opacity: 0, duration: 0.5, ease: "power2.out" });
+                }
+            }
+        };
+    </script>
+
+    <div id="global-wrapper">
+        <div id="flash-overlay"></div>
+
+        <!-- BARRA DE ESCASSEZ -->
+        <div class="scarcity-bar">
+            <i data-lucide="alert-circle" style="width: 18px;"></i>
+            ATENÇÃO: AVALIAÇÃO DE PROJETOS ENCERRA EM: 
+            <div class="timer-box" id="countdown">12:45:30</div>
+        </div>
+
+        <!-- 1. HERO / VSL / HUD DIAGNÓSTICO -->
+        <section class="vsl-section" id="hero-area">
+            <div class="container">
+                <span class="pre-headline">Engenharia de Conversão Devtech</span>
+                <h1 class="headline">Como um Site de Alta Performance Substitui uma <span class="highlight-bg text-gold">Equipa de Vendas Inteira</span>.</h1>
+                <p class="sub-headline">A arquitetura exata que transforma o seu "site bonito" numa máquina previsível de atrair e converter clientes de alto valor.</p>
+
+                <div id="vsl-lock-container" style="position: relative;">
+                    
+                    <div class="diagnostic-hud" id="pre-vsl-terminal">
+                        <div class="hud-scanner"></div>
+                        <div class="hud-header">
+                            <span class="pulse-dot"></span> SYSTEM DIAGNOSTIC // AWAITING INPUT
+                        </div>
+                        
+                        <div class="hud-body">
+                            <h3 class="hud-question">Identifique o gargalo atual da sua empresa:</h3>
+                            <div class="hud-options" id="t-options">
+                                <button class="hud-btn" onclick="unlockVSL()">
+                                    <span class="btn-id">[01]</span>
+                                    <span class="btn-text">O meu site atual não gera leads. Serve apenas de "cartão de visita" inútil.</span>
+                                </button>
+                                <button class="hud-btn" onclick="unlockVSL()">
+                                    <span class="btn-id">[02]</span>
+                                    <span class="btn-text">Compro tráfego, mas os visitantes fogem porque a página é lenta e amadora.</span>
+                                </button>
+                                <button class="hud-btn" onclick="unlockVSL()">
+                                    <span class="btn-id">[03]</span>
+                                    <span class="btn-text">Perco clientes para a concorrência porque a minha presença digital não transmite confiança.</span>
+                                </button>
+                            </div>
+                            <div class="hud-processing" id="hud-processing">
+                                > DECRYPTING PROTOCOL...
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="vsl-wrapper" id="vsl-player">
+                        <div class="vsl-overlay"></div>
+                        <div class="play-btn"><svg viewBox="0 0 24 24"><path d="M6 4l15 8-15 8z"/></svg></div>
+                    </div>
+                </div>
+
+                <div class="cta-container" id="cta-block">
+                    <a href="#oferta" class="btn-buy">
+                        Quero Avaliar O Meu Negócio
+                        <i data-lucide="arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. AGITAÇÃO DA DOR (PORRADÃO EMOCIONAL) -->
+        <section class="pain-section" id="pain-trigger">
+            <div class="container">
+                <h2 class="pain-title gs-slam-pain">Você não tem um problema de tráfego.<br><span style="color: #FFF; font-size: 0.6em; display: block; margin-top: 10px; text-shadow: none;">Tem um problema de conversão.</span></h2>
+                <div class="pain-grid">
+                    <div class="pain-card gs-slam-card">
+                        <div class="pain-status"><span></span> HEMORRAGIA ATIVA</div>
+                        <i data-lucide="ghost"></i>
+                        <h3>O Cemitério de Cliques</h3>
+                        <p>Você gasta em anúncios no Google e Meta, mas o seu site de "template" demora 5 segundos a carregar. O cliente farta-se, desiste e você paga a conta.</p>
+                    </div>
+                    <div class="pain-card gs-slam-card">
+                        <div class="pain-status"><span></span> PERDA DE QUOTA</div>
+                        <i data-lucide="frown"></i>
+                        <h3>O Concorrente Menos Capaz Ganha</h3>
+                        <p>Dói ver pessoas com produtos muito piores que o seu a faturar o triplo. Eles não são melhores, eles apenas têm uma Landing Page profissional que retém a atenção.</p>
+                    </div>
+                    <div class="pain-card gs-slam-card">
+                        <div class="pain-status"><span></span> FALHA NO SISTEMA</div>
+                        <i data-lucide="battery-charging"></i>
+                        <h3>Vendas Manuais Exaustivas</h3>
+                        <p>Tem de convencer o cliente no WhatsApp 1 a 1, a responder a perguntas básicas, porque o seu site não tem uma estrutura persuasiva que explique o seu valor.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. INIMIGO COMUM & SANGRIA -->
+        <section class="enemy-section">
+            <div class="container">
+                <div class="enemy-box gs-fade">
+                    <h2 class="enemy-title">A Máfia do Tráfego Mentiu-lhe.</h2>
+                    <p style="color: #AAA; font-size: 1.1rem; line-height: 1.6;">As agências dizem que precisa de investir mais em anúncios. Sabe porquê? Porque eles ganham sobre o que você gasta.<br><br>A verdade incómoda é que o seu tráfego atual já é suficiente. <strong>O seu site é que é um balde furado.</strong> Você está a comprar água cara para deitar fora.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="math-section">
+            <div class="container">
+                <div class="calc-box gs-fade">
+                    <span class="pulse-text">● ALERTA DE SISTEMA: SANGRAMENTO DETETADO</span>
+                    <h2 class="calc-title">O Custo de um Site Amador</h2>
+                    
+                    <div class="live-burn-container">
+                        <div class="calc-result" id="live-burn">R$ 0,00</div>
+                        <div class="calc-sub">Este é o valor que as empresas com sites "bonitos, mas que não convertem" acabaram de perder no mercado enquanto você lia esta secção.</div>
+                    </div>
+                    <p style="color: #FFF; font-weight: 700; margin-top: 2rem; font-size: 1.2rem;">Não é a falta de tráfego que quebra empresas. É a incapacidade de reter a atenção da pessoa que já clicou.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. O MÉTODO: 3D NEXUS CORE + SCROLL HORIZONTAL (MODO DOPAMINA MÁXIMA) -->
+        <section class="protocol-section" id="protocol-pin">
+            <div id="funnel-canvas"></div>
+            <div class="scanlines"></div>
+            
+            <div class="protocol-content-wrapper">
+                
+                <div class="protocol-header-fixed" id="protocol-title">
+                    <span class="section-tag">// A ARQUITETURA DEVTECH</span>
+                    <h2 class="protocol-title">A Engenharia da <span style="color:var(--accent-green)">Sobrevivência</span>.</h2>
+                </div>
+                
+                <div class="protocol-track-wrapper">
+                    <div class="protocol-track" id="protocol-track">
+                        
+                        <!-- Card 1 -->
+                        <div class="proto-card protocol-node" data-target="4.8x">
+                            <div class="flash-bang"></div>
+                            <div class="target-corners"><span class="tc-tl"></span><span class="tc-tr"></span><span class="tc-bl"></span><span class="tc-br"></span></div>
+                            
+                            <div class="proto-card-bg" style="background-image: url('https://images.unsplash.com/photo-1618044733300-9472054094ee?q=80&w=2071&auto=format&fit=crop');"></div>
+                            <div class="proto-card-overlay"></div>
+                            
+                            <div class="proto-content">
+                                <div class="dopamine-panel">
+                                    <div class="dp-info">
+                                        <span class="dp-label">Design & Copy</span>
+                                        <span class="dp-status">BLOQUEADO</span>
+                                    </div>
+                                    <span class="dp-value">0.0x</span>
+                                </div>
+                                <span class="proto-num">FASE 01 // O FIM DA HEMORRAGIA</span>
+                                <h3 class="decode-text" data-final="Filtro Implacável">X$#@%&!*?</h3>
+                                <p>O design agressivo e o copy de resposta direta afastam curiosos e prendem a atenção do cliente ideal nos primeiros 3 segundos. O "efeito UAU" gera confiança instantânea na sua marca.</p>
+                            </div>
+                            <div class="unlock-progress"><div class="unlock-fill"></div></div>
+                        </div>
+
+                        <!-- Card 2 -->
+                        <div class="proto-card protocol-node" data-target="8.4s">
+                            <div class="flash-bang"></div>
+                            <div class="target-corners"><span class="tc-tl"></span><span class="tc-tr"></span><span class="tc-bl"></span><span class="tc-br"></span></div>
+                            
+                            <div class="proto-card-bg" style="background-image: url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2070&auto=format&fit=crop');"></div>
+                            <div class="proto-card-overlay"></div>
+                            
+                            <div class="proto-content">
+                                <div class="dopamine-panel">
+                                    <div class="dp-info">
+                                        <span class="dp-label">Atenção (UI/UX)</span>
+                                        <span class="dp-status">BLOQUEADO</span>
+                                    </div>
+                                    <span class="dp-value">0.0s</span>
+                                </div>
+                                <span class="proto-num">FASE 02 // PERFORMANCE ABSOLUTA</span>
+                                <h3 class="decode-text" data-final="Sequestro de Atenção">#@$X!&*?%</h3>
+                                <p>A Devtech desenvolve o seu site com código limpo e infraestrutura de ponta. O seu site carrega em menos de 1 segundo, eliminando a frustração do utilizador e dominando o SEO do Google.</p>
+                            </div>
+                            <div class="unlock-progress"><div class="unlock-fill"></div></div>
+                        </div>
+
+                        <!-- Card 3 -->
+                        <div class="proto-card protocol-node" data-target="99.9%">
+                            <div class="flash-bang"></div>
+                            <div class="target-corners"><span class="tc-tl"></span><span class="tc-tr"></span><span class="tc-bl"></span><span class="tc-br"></span></div>
+                            
+                            <div class="proto-card-bg" style="background-image: url('https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?q=80&w=2070&auto=format&fit=crop');"></div>
+                            <div class="proto-card-overlay"></div>
+                            
+                            <div class="proto-content">
+                                <div class="dopamine-panel">
+                                    <div class="dp-info">
+                                        <span class="dp-label">Lógica de Venda</span>
+                                        <span class="dp-status">BLOQUEADO</span>
+                                    </div>
+                                    <span class="dp-value">0.0%</span>
+                                </div>
+                                <span class="proto-num">FASE 03 // FECHO LÓGICO</span>
+                                <h3 class="decode-text" data-final="Doutrinação Lógica">!#X@%?&*</h3>
+                                <p>A arquitetura da página inverte a dinâmica de poder: o cliente é bombardeado com argumentos lógicos, garantias e urgência, até clicar no botão a implorar para fazer negócio consigo.</p>
+                            </div>
+                            <div class="unlock-progress"><div class="unlock-fill"></div></div>
+                        </div>
+
+                        <!-- Card 4 -->
+                        <div class="proto-card protocol-node" data-target="15.2x">
+                            <div class="flash-bang"></div>
+                            <div class="target-corners"><span class="tc-tl"></span><span class="tc-tr"></span><span class="tc-bl"></span><span class="tc-br"></span></div>
+                            
+                            <div class="proto-card-bg" style="background-image: url('https://images.unsplash.com/photo-1640340434855-6084b1f4901c?q=80&w=2064&auto=format&fit=crop');"></div>
+                            <div class="proto-card-overlay"></div>
+                            
+                            <div class="proto-content">
+                                <div class="dopamine-panel">
+                                    <div class="dp-info">
+                                        <span class="dp-label">Escala</span>
+                                        <span class="dp-status">BLOQUEADO</span>
+                                    </div>
+                                    <span class="dp-value">0.0x</span>
+                                </div>
+                                <span class="proto-num">FASE 04 // DOMÍNIO DE MERCADO</span>
+                                <h3 class="decode-text" data-final="Lucro Irracional">X!#%@&*?$</h3>
+                                <p>Instalamos todo o tracking e rastreio de dados avançado. Quando a sua página tem alta conversão e os dados estão a medir corretamente, você esmaga a concorrência nos anúncios.</p>
+                            </div>
+                            <div class="unlock-progress"><div class="unlock-fill"></div></div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. OFERTA DA AGÊNCIA (PITCH) -->
+        <section class="offer-section" id="oferta">
+            <div class="container">
+                <div class="offer-box gs-fade">
+                    <ul class="stack-list">
+                        <li>
+                            <span><i data-lucide="check-circle-2"></i> Desenvolvimento de Landing Page High-Ticket</span>
+                        </li>
+                        <li>
+                            <span><i data-lucide="check-circle-2"></i> Copywriting de Resposta Direta & Oferta</span>
+                        </li>
+                        <li>
+                            <span><i data-lucide="check-circle-2"></i> Design UX/UI Avançado (Retenção Extrema)</span>
+                        </li>
+                        <li>
+                            <span><i data-lucide="check-circle-2"></i> Otimização de Servidor & Tracking de Dados</span>
+                        </li>
+                        <li class="total">
+                            <span>Valor Real do Protocolo:</span>
+                            <span class="value">R$ 4.997,00</span>
+                        </li>
+                    </ul>
+
+                    <div class="price-reveal">
+                        <p>Investimento para membros qualificados a partir de:</p>
+                        <div class="the-price"><span>R$</span> 1.497</div>
+                        <div class="installments">Projetos Exclusivos Devtech</div>
+                        
+                        <a href="https://wa.me/SEUNUMERO" target="_blank" class="btn-buy" style="margin-top: 1rem; width: 100%;">
+                            INICIAR PROJETO DE ENGENHARIA
+                            <i data-lucide="rocket"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <div class="container">
+                <p><strong>ENG. DE VENDAS</strong> - Portfólio de Demonstração (VSL + High Ticket Copy + Agency Pitch)</p>
+                <p style="margin-top: 10px;">Este site é uma representação desenhada pela Devtech para demonstrar poder de conversão absoluto a clientes interessados. &copy; 2026 Devtech.</p>
+            </div>
+        </footer>
+
+    </div> <!-- Ends Global Wrapper -->
+
+    <script>
+        lucide.createIcons();
+
+        // SCARCITY TIMER
+        const timerDisplay = document.getElementById('countdown');
+        let totalSeconds = 12 * 3600 + 45 * 60 + 30; 
+        setInterval(() => {
+            if(totalSeconds <= 0) return;
+            totalSeconds--;
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            timerDisplay.innerText = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }, 1000);
+
+        // O RELÓGIO DA SANGRIA
+        const liveBurnDisplay = document.getElementById('live-burn');
+        let burnedMoney = 12450.50; 
+        setInterval(() => {
+            burnedMoney += (Math.random() * 8 + 2); 
+            liveBurnDisplay.innerText = burnedMoney.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+        }, 100);
+
+        // HUD DIAGNÓSTICO
+        if(typeof gsap !== 'undefined') {
+            gsap.to('.diagnostic-hud', { y: 0, opacity: 1, duration: 0.6, ease: "power3.out", delay: 0.5 });
+        }
+
+        window.unlockVSL = function() {
+            const options = document.getElementById('t-options');
+            const processing = document.getElementById('hud-processing');
+            const terminal = document.getElementById('pre-vsl-terminal');
+            const vsl = document.getElementById('vsl-player');
+            const cta = document.getElementById('cta-block');
+            const container = document.getElementById('vsl-lock-container');
+
+            options.style.display = 'none';
+            processing.style.display = 'block';
+
+            let flashCount = 0;
+            const flashInterval = setInterval(() => {
+                processing.style.opacity = flashCount % 2 === 0 ? 0 : 1;
+                flashCount++;
+                if(flashCount > 5) clearInterval(flashInterval);
+            }, 100);
+            
+            setTimeout(() => {
+                container.classList.add('glitch-anim');
+                setTimeout(() => {
+                    terminal.style.display = 'none';
+                    vsl.style.display = 'flex'; vsl.style.opacity = 1;
+                    cta.style.display = 'flex'; cta.style.opacity = 1;
+                    setTimeout(() => { container.classList.remove('glitch-anim'); }, 300);
+                }, 150);
+            }, 800);
+        };
+
+        // GSAP + THREE.JS + DOPAMINA SCROLL
+        document.addEventListener('DOMContentLoaded', () => {
+            gsap.registerPlugin(ScrollTrigger);
+
+            gsap.utils.toArray('.gs-fade').forEach((elem) => {
+                gsap.fromTo(elem, { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: 'power3.out', scrollTrigger: { trigger: elem, start: "top 85%" } });
+            });
+
+            // IMPACTO DA SECÇÃO DE DOR (PORRADÃO)
+            ScrollTrigger.create({
+                trigger: "#pain-trigger",
+                start: "top 65%",
+                onEnter: () => {
+                    if(typeof window.triggerGlobalImpact === 'function') {
+                        window.triggerGlobalImpact();
+                    }
+                    const triggerEl = document.getElementById('pain-trigger');
+                    if(triggerEl) triggerEl.classList.add('is-alert');
+                    
+                    gsap.fromTo('.gs-slam-pain', 
+                        { scale: 2, opacity: 0, y: -100, filter: "blur(10px)" }, 
+                        { scale: 1, opacity: 1, y: 0, filter: "blur(0px)", duration: 0.6, ease: "power4.out" }
+                    );
+
+                    gsap.fromTo('.gs-slam-card', 
+                        { y: -200, rotationX: 45, scale: 1.2, opacity: 0 }, 
+                        { y: 0, rotationX: 0, scale: 1, opacity: 1, duration: 0.5, stagger: 0.15, ease: "bounce.out", 
+                          onComplete: () => {
+                              gsap.fromTo('.gs-slam-card', { x: -5 }, { x: 0, duration: 0.1, yoyo: true, repeat: 3 });
+                          }
+                        }
+                    );
+                }
+            });
+
+            // 1. SETUP THREE.JS (NEXUS CORE)
+            const canvasContainer = document.getElementById('funnel-canvas');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(45, canvasContainer.clientWidth / canvasContainer.clientHeight, 0.1, 100);
+            camera.position.set(0, 0, 18);
+            
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            canvasContainer.appendChild(renderer.domElement);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            const light1 = new THREE.PointLight(0x00FF55, 3, 50); light1.position.set(5, 5, 5); scene.add(light1);
+            const light2 = new THREE.PointLight(0x0088ff, 3, 50); light2.position.set(-5, -5, 5); scene.add(light2);
+
+            const coreGroup = new THREE.Group();
+            const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.1, roughness: 0.1, transmission: 0.9, opacity: 1, transparent: true, ior: 1.5, thickness: 0.5, side: THREE.DoubleSide });
+            const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(4, 0), glassMat); coreGroup.add(shell);
+            
+            const innerMat = new THREE.MeshBasicMaterial({ color: 0x00FF55, wireframe: true, transparent: true, opacity: 0.8 });
+            const innerCore = new THREE.Mesh(new THREE.IcosahedronGeometry(2, 0), innerMat); coreGroup.add(innerCore);
+
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 1, roughness: 0.2 });
+            const ring1 = new THREE.Mesh(new THREE.TorusGeometry(6, 0.05, 16, 100), ringMat); ring1.rotation.x = Math.PI / 2;
+            const ring2 = new THREE.Mesh(new THREE.TorusGeometry(7, 0.05, 16, 100), ringMat); ring2.rotation.y = Math.PI / 3;
+            coreGroup.add(ring1, ring2);
+            scene.add(coreGroup);
+
+            const coreState = { pulseScale: 1 };
+
+            function animate3D() {
+                requestAnimationFrame(animate3D);
+                shell.rotation.y += 0.003; shell.rotation.x += 0.001;
+                innerCore.rotation.y -= 0.005; innerCore.rotation.x += 0.005;
+                ring1.rotation.x += 0.005; ring2.rotation.y -= 0.005;
+                
+                const baseScale = 1 + Math.sin(Date.now() * 0.002) * 0.05;
+                const finalScale = baseScale * coreState.pulseScale;
+                innerCore.scale.set(finalScale, finalScale, finalScale);
+                
+                renderer.render(scene, camera);
+            }
+            animate3D();
+
+            const resizeObserver = new ResizeObserver(() => {
+                if(canvasContainer.clientWidth > 0) {
+                    camera.aspect = canvasContainer.clientWidth / canvasContainer.clientHeight;
+                    camera.updateProjectionMatrix(); renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+                }
+            });
+            resizeObserver.observe(canvasContainer);
+
+            // 2. Lógica Dopaminérgica da Carta
+            function triggerDopamineSpike(card) {
+                const flash = card.querySelector('.flash-bang');
+                if (flash) gsap.fromTo(flash, {opacity: 1}, {opacity: 0, duration: 0.6, ease: "power4.out"});
+
+                const status = card.querySelector('.dp-status');
+                if (status) {
+                    status.innerText = "UNLOCKED";
+                    gsap.fromTo(status, {color: '#FFF', scale: 1.5}, {color: 'var(--accent-green)', scale: 1, duration: 0.4, ease: "back.out(1.7)"});
+                }
+
+                const valDisplay = card.querySelector('.dp-value');
+                const targetStr = card.getAttribute('data-target') || '0';
+                if (valDisplay && targetStr) {
+                    const isPercent = targetStr.includes('%');
+                    const isSec = targetStr.includes('s');
+                    const suffix = isPercent ? '%' : (isSec ? 's' : 'x');
+                    let ticks = 0;
+                    const maxTicks = 40; 
+                    
+                    const slot = setInterval(() => {
+                        const randomVal = (Math.random() * 99).toFixed(1);
+                        valDisplay.innerText = randomVal + suffix;
+                        ticks++;
+                        if (ticks > maxTicks) {
+                            clearInterval(slot);
+                            valDisplay.innerText = targetStr;
+                            gsap.fromTo(valDisplay, {scale: 1.8, textShadow: '0 0 30px #FFF'}, {scale: 1, textShadow: '0 0 15px rgba(0, 255, 85, 0.5)', duration: 0.5, ease: "elastic.out(1, 0.3)"});
+                        }
+                    }, 30);
+                }
+
+                const fill = card.querySelector('.unlock-fill');
+                if (fill) gsap.fromTo(fill, {width: "0%"}, {width: "100%", duration: 1.2, ease: "power4.out"});
+                
+                gsap.fromTo(card, {x: -10, y: 5}, {x: 0, y: 0, duration: 0.4, ease: "elastic.out(1, 0.3)"});
+                
+                const title = card.querySelector('.decode-text');
+                if(title) {
+                    const finalVal = title.getAttribute('data-final');
+                    const chars = '!@#$%^&*()_+X';
+                    let tTicks = 0;
+                    const tInterval = setInterval(() => {
+                        title.innerText = finalVal.split('').map((c, i) => {
+                            if (c === ' ') return ' ';
+                            return Math.random() > (tTicks / 20) ? chars[Math.floor(Math.random() * chars.length)] : finalVal[i];
+                        }).join('');
+                        tTicks++;
+                        if (tTicks > 20) { clearInterval(tInterval); title.innerText = finalVal; }
+                    }, 30);
+                }
+
+                gsap.fromTo(coreState, { pulseScale: 1.6 }, { pulseScale: 1, duration: 0.6, ease: "bounce.out" });
+            }
+
+            // 3. HORIZONTAL SCROLL GSAP ESTRUTURA OFICIAL (Universal)
+            const track = document.getElementById('protocol-track');
+            
+            const getScrollAmount = () => track.scrollWidth - window.innerWidth;
+
+            let scrollTween = gsap.to(track, {
+                x: () => -getScrollAmount(),
+                ease: "none",
+                scrollTrigger: {
+                    trigger: "#protocol-pin",
+                    start: "top top",
+                    end: () => `+=${getScrollAmount()}`,
+                    pin: true,
+                    scrub: 1,
+                    invalidateOnRefresh: true
+                }
+            });
+
+            gsap.to('#protocol-title', {
+                opacity: 0, y: -50, ease: "power2.out",
+                scrollTrigger: {
+                    trigger: "#protocol-pin",
+                    start: "top top",
+                    end: "+=300",
+                    scrub: 1
+                }
+            });
+
+            gsap.to(coreGroup.rotation, {
+                y: Math.PI * 2, z: Math.PI / 4, ease: "none",
+                scrollTrigger: {
+                    trigger: "#protocol-pin",
+                    start: "top top",
+                    end: () => `+=${getScrollAmount()}`,
+                    scrub: 1,
+                    invalidateOnRefresh: true
+                }
+            });
+
+            gsap.utils.toArray('.protocol-node').forEach(card => {
+                ScrollTrigger.create({
+                    trigger: card,
+                    containerAnimation: scrollTween, 
+                    start: "center center", 
+                    onEnter: () => {
+                        if(!card.classList.contains('is-active')) {
+                            card.classList.add('is-active');
+                            triggerDopamineSpike(card);
+                        }
+                    }
+                });
+            });
+
+        });
+
+        window.addEventListener('load', () => {
+            if (typeof ScrollTrigger !== 'undefined') {
+                setTimeout(() => { ScrollTrigger.refresh(); }, 500);
+            }
+        });
+    </script>
+</body>
+</html>
