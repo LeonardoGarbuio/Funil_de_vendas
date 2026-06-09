@@ -205,8 +205,20 @@
         
         .calc-title { font-family: var(--font-head); font-size: 2.5rem; margin-bottom: 2rem; color: #FFF; text-transform: uppercase; }
         
-        .live-burn-container { background: rgba(0,0,0,0.5); padding: 2rem; border-radius: 12px; border: 1px solid rgba(255,59,48,0.2); margin-top: 2rem; }
-        .calc-result { font-family: var(--font-tech); font-size: 4rem; color: var(--accent-red); font-weight: 900; text-shadow: 0 0 30px rgba(255, 59, 48, 0.6); line-height: 1; letter-spacing: -2px; }
+        .live-burn-container { background: rgba(0,0,0,0.5); padding: 2rem; border-radius: 12px; border: 1px solid rgba(255,59,48,0.2); margin-top: 2rem; overflow: hidden; }
+        
+        /* CORREÇÃO DO TAMANHO DA FONTE AQUI */
+        .calc-result { 
+            font-family: var(--font-tech); 
+            font-size: clamp(1.8rem, 8vw, 4rem); /* Responsivo: não vai quebrar telas pequenas */
+            color: var(--accent-red); 
+            font-weight: 900; 
+            text-shadow: 0 0 30px rgba(255, 59, 48, 0.6); 
+            line-height: 1; 
+            letter-spacing: -1px; 
+            white-space: nowrap; /* Impede quebra de linha feia */
+        }
+        
         .calc-sub { color: var(--text-muted); font-size: 1rem; margin-top: 15px; line-height: 1.5; }
 
         /* =========================================
